@@ -65,10 +65,28 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(bytes);
       console.log('File converted to buffer of size:', buffer.length);
 
+      // Basic validation
+      if (!buffer || buffer.length === 0) {
+        console.error('Empty buffer after conversion');
+        return NextResponse.json(
+          { error: 'Failed to process the PDF file: empty buffer' },
+          { status: 422 }
+        );
+      }
+
       // Parse PDF content using our custom parser
       console.log('Parsing PDF content with custom parser...');
-      const pdfText = await parsePdfAlt(buffer);
-      console.log('PDF parsing complete. Text length:', pdfText.length);
+      let pdfText;
+      try {
+        pdfText = await parsePdfAlt(buffer);
+        console.log('PDF parsing complete. Text length:', pdfText.length);
+      } catch (pdfError: unknown) {
+        console.error('PDF parsing error:', pdfError);
+        return NextResponse.json(
+          { error: `PDF parsing failed: ${pdfError instanceof Error ? pdfError.message : 'Unknown parsing error'}` },
+          { status: 422 }
+        );
+      }
 
       // Upload to Cloudinary
       console.log('Uploading to Cloudinary...');
