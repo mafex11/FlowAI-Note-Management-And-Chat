@@ -6,22 +6,37 @@
 // We'll use a pure buffer-based approach without any file path dependencies
 export async function parsePdfAlt(buffer: Buffer): Promise<string> {
   try {
+    console.log('Starting alternative PDF parsing with buffer');
+    
     // Safety check for empty buffer
-    if (!buffer || buffer.length === 0) {
+    if (!buffer) {
+      console.error('Buffer is null or undefined');
+      return 'No content to parse: buffer is null or undefined.';
+    }
+    
+    if (buffer.length === 0) {
       console.error('Empty buffer provided to PDF parser');
       return 'No content to parse: empty buffer provided.';
     }
 
-    console.log('Starting alternative PDF parsing with buffer of size:', buffer.length);
+    console.log('Buffer received with size:', buffer.length);
     
     // Simple check for PDF signature
+    if (buffer.length < 5) {
+      console.error('Buffer too small to be a valid PDF:', buffer.length);
+      return 'Buffer too small to be a valid PDF file.';
+    }
+    
     const signature = buffer.slice(0, 5).toString();
+    console.log('PDF signature check:', signature);
     
     if (!signature.startsWith('%PDF-')) {
       console.error('Invalid PDF signature:', signature);
       // Just return a placeholder rather than throwing an error
       return 'This does not appear to be a valid PDF file. The file may be corrupted or in an unsupported format.';
     }
+    
+    console.log('Valid PDF signature detected, beginning text extraction');
     
     // This is a simple function that extracts text-like content from a PDF
     // It's not perfect but should work for basic text extraction
@@ -69,9 +84,11 @@ export async function parsePdfAlt(buffer: Buffer): Promise<string> {
         
         pos = etIndex + 2;
       }
+      console.log('Primary text extraction complete');
     } catch (parsingError) {
       console.error('Error during PDF text extraction:', parsingError);
       // Continue to fallback extraction
+      console.log('Continuing to fallback extraction method');
     }
     
     // Fallback: If no text found between BT/ET tags, try to extract any text-like content
@@ -80,37 +97,51 @@ export async function parsePdfAlt(buffer: Buffer): Promise<string> {
       
       try {
         // Simple ASCII text extraction (imperfect but better than nothing)
+        let tempText = '';
         for (let i = 0; i < buffer.length - 1; i++) {
           const byte = buffer[i];
           // Only include printable ASCII characters
           if (byte >= 32 && byte <= 126) {
-            extractedText += String.fromCharCode(byte);
+            tempText += String.fromCharCode(byte);
           } else if (byte === 10 || byte === 13) {
-            extractedText += '\n';
+            tempText += '\n';
           }
           
           // Process in chunks to avoid memory issues
-          if (i % 100000 === 0) {
-            extractedText = cleanupPdfText(extractedText);
+          if (i % 100000 === 0 && tempText.length > 0) {
+            extractedText += cleanupPdfText(tempText);
+            tempText = '';
           }
         }
+        
+        // Add any remaining text
+        if (tempText.length > 0) {
+          extractedText += cleanupPdfText(tempText);
+        }
+        
+        console.log('Fallback extraction complete, extracted content length:', extractedText.length);
       } catch (fallbackError) {
         console.error('Error during fallback text extraction:', fallbackError);
         // Return what we've got so far, even if it's incomplete
+        console.log('Using partial extraction results after fallback error');
       }
     }
     
     // Clean up the extracted text
     try {
+      const textBeforeCleanup = extractedText;
       extractedText = cleanupPdfText(extractedText);
+      console.log(`Cleanup complete: ${textBeforeCleanup.length} chars → ${extractedText.length} chars`);
     } catch (cleanupError) {
       console.error('Error cleaning up text:', cleanupError);
       // Use what we have without cleanup if cleanup fails
+      console.log('Using unclean text due to cleanup error');
     }
     
     console.log('Alternative PDF parsing complete. Extracted text length:', extractedText.length);
     
     if (extractedText.trim().length === 0) {
+      console.log('No text content extracted');
       return 'No text content could be extracted from this PDF. The file may be scanned images or protected.';
     }
     
@@ -124,10 +155,17 @@ export async function parsePdfAlt(buffer: Buffer): Promise<string> {
     
     return extractedText;
   } catch (error) {
-    console.error('Error in alternative PDF parsing:', error);
+    console.error('Unhandled error in PDF parsing:', error);
+    
+    // Provide detailed error for debugging
+    const errorMessage = error instanceof Error 
+      ? `${error.name}: ${error.message}`
+      : 'Unknown error occurred during PDF parsing';
+    
+    console.error(errorMessage);
     
     // Simple error fallback that won't throw
-    return 'Failed to parse PDF. The document may be encrypted, damaged, or in an unsupported format.';
+    return `Failed to parse PDF: ${errorMessage}. The document may be encrypted, damaged, or in an unsupported format.`;
   }
 }
 
@@ -166,12 +204,15 @@ function findClosingParenthesis(buffer: Buffer, openIndex: number): number {
 // Helper function to clean up extracted PDF text
 function cleanupPdfText(text: string): string {
   try {
+    if (!text) return '';
+    
     return text
       .replace(/\s+/g, ' ')           // Replace multiple spaces with single space
       .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
       .trim();
   } catch (error) {
     console.error('Error in cleanupPdfText:', error);
-    return text; // Return the original text if cleanup fails
+    return text || ''; // Return the original text if cleanup fails
   }
+} 
 } 
