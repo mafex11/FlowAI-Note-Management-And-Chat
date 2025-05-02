@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Upload, FileText, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import {
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 
 interface DocumentStats {
   total: number;
@@ -33,7 +43,6 @@ export default function Dashboard() {
     const fetchDocuments = async () => {
       try {
         if (status !== "authenticated") {
-          // Don't fetch if not authenticated
           if (status === "unauthenticated") {
             setError("Not authenticated - please sign in");
           }
@@ -50,11 +59,9 @@ export default function Dashboard() {
         const data = await response.json();
         
         if (data.documents) {
-          // Get recent documents (last 5)
           const recent = data.documents.slice(0, 5);
           setRecentDocuments(recent);
           
-          // Calculate document stats
           const stats: DocumentStats = {
             total: data.documents.length,
             bySubject: {},
@@ -92,146 +99,89 @@ export default function Dashboard() {
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
         <p className="mb-4">You must be signed in to view this page.</p>
-        <Link href="/auth/signin">
-          <Button>Sign In</Button>
-        </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        {session && (
-          <div className="text-sm">
-            Signed in as: <span className="font-medium">{session.user?.email}</span>
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <div className="bg-red-50 p-4 rounded-lg text-red-700 mb-6">
-          {error}
+    <div className="flex flex-col h-full">
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-white">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbLink href="/dashboard">
+                  Dashboard
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:block" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Overview</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-      )}
-      
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link href="/dashboard/upload">
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="flex flex-col items-center text-center">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Upload className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-medium">Upload Notes</h3>
-              <p className="text-sm text-gray-500 mt-1">Upload PDF notes and study materials</p>
-            </div>
+      </header>
+      <div className="flex-1 p-6 bg-gray-50">
+        {error && (
+          <div className="bg-red-50 p-4 rounded-lg text-red-700 mb-6">
+            {error}
           </div>
-        </Link>
-        
-        <Link href="/dashboard/documents">
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="flex flex-col items-center text-center">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <FileText className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-medium">Browse Documents</h3>
-              <p className="text-sm text-gray-500 mt-1">View and manage your uploaded notes</p>
-            </div>
-          </div>
-        </Link>
-        
-        <Link href="/dashboard/chat">
-          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-            <div className="flex flex-col items-center text-center">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <MessageSquare className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-medium">Universal Chat</h3>
-              <p className="text-sm text-gray-500 mt-1">Ask questions about your study materials</p>
-            </div>
-          </div>
-        </Link>
-      </div>
-      
-      {/* Document Statistics */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Document Statistics</h2>
-        
-        {loading ? (
-          <div className="h-20 flex items-center justify-center">
-            <p>Loading statistics...</p>
-          </div>
-        ) : (
-          <>
-            <div className="mb-4">
-              <p className="text-2xl font-bold">{documentStats.total}</p>
-              <p className="text-sm text-gray-500">Total Documents</p>
-            </div>
-            
-            {Object.keys(documentStats.bySubject).length > 0 ? (
-              <div>
-                <h3 className="text-sm font-medium mb-2">Documents by Subject</h3>
-                <div className="space-y-2">
-                  {Object.entries(documentStats.bySubject).map(([subject, count]) => (
-                    <div key={subject} className="flex justify-between items-center">
-                      <span>{subject}</span>
-                      <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-                        {count} {count === 1 ? 'document' : 'documents'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No documents have been uploaded yet.</p>
-            )}
-          </>
         )}
-      </div>
-      
-      {/* Recent Documents */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Recent Documents</h2>
-          {recentDocuments.length > 0 && (
-            <Link href="/dashboard/documents">
-              <Button variant="outline" size="sm">View All</Button>
-            </Link>
+        
+        {/* Document Statistics */}
+        <div className="grid auto-rows-min gap-4 md:grid-cols-3 mb-6">
+          <div className="p-6 rounded-xl bg-white shadow-sm">
+            <h3 className="text-lg font-semibold mb-2">Total Documents</h3>
+            <p className="text-3xl font-bold">{documentStats.total}</p>
+          </div>
+          <div className="p-6 rounded-xl bg-white shadow-sm">
+            <h3 className="text-lg font-semibold mb-2">Subjects</h3>
+            <p className="text-3xl font-bold">{Object.keys(documentStats.bySubject).length}</p>
+          </div>
+          <div className="p-6 rounded-xl bg-white shadow-sm">
+            <h3 className="text-lg font-semibold mb-2">Recent Activity</h3>
+            <p className="text-3xl font-bold">{recentDocuments.length}</p>
+          </div>
+        </div>
+
+        {/* Recent Documents */}
+        <div className="rounded-xl bg-white shadow-sm p-6">
+          <h2 className="text-xl font-semibold mb-4">Recent Documents</h2>
+          {loading ? (
+            <div className="h-20 flex items-center justify-center">
+              <p>Loading documents...</p>
+            </div>
+          ) : recentDocuments.length > 0 ? (
+            <div className="space-y-4">
+              {recentDocuments.map((doc: any) => (
+                <div key={doc.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <h3 className="font-medium">{doc.title}</h3>
+                  <p className="text-sm text-gray-500">
+                    {doc.subject} {doc.course_code ? `• ${doc.course_code}` : ''}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-700">{doc.summary}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {doc.topics.slice(0, 3).map((topic: string, i: number) => (
+                      <span 
+                        key={i} 
+                        className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
+                      >
+                        {topic}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-gray-500 mb-4">No documents have been uploaded yet.</p>
+            </div>
           )}
         </div>
-        
-        {loading ? (
-          <div className="h-20 flex items-center justify-center">
-            <p>Loading documents...</p>
-          </div>
-        ) : recentDocuments.length > 0 ? (
-          <div className="space-y-2">
-            {recentDocuments.map((doc: any) => (
-              <Link key={doc.id} href={`/dashboard/documents/${doc.id}`}>
-                <div className="p-3 border rounded-lg hover:bg-gray-50 transition-colors flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">{doc.title}</h3>
-                    <p className="text-sm text-gray-500">
-                      {doc.subject} {doc.course_code ? `• ${doc.course_code}` : ''}
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(doc.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6">
-            <p className="text-gray-500 mb-4">No documents have been uploaded yet.</p>
-            <Link href="/dashboard/upload">
-              <Button>Upload Your First Document</Button>
-            </Link>
-          </div>
-        )}
       </div>
     </div>
   );

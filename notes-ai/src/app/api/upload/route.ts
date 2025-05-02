@@ -4,7 +4,7 @@ import { Readable } from 'stream';
 import cloudinary from '@/lib/cloudinary';
 import connectToDatabase from '@/lib/db';
 import Document from '@/models/document';
-import { parsePdfAlt } from '@/lib/pdf-parser-alt';
+import { parsePdfRobust } from '@/lib/pdf-parser-robust';
 import { extractTopicsAndSummarize } from '@/lib/perplexity';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
@@ -27,7 +27,7 @@ interface ExtendedSession {
 export async function POST(req: NextRequest) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions as any) as ExtendedSession;
+    const session = await getServerSession(authOptions as Record<string, unknown>) as ExtendedSession;
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -74,47 +74,100 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Parse PDF content using our custom parser
-      console.log('Parsing PDF content with custom parser...');
+      // Parse PDF content using our robust parser
+      console.log('Parsing PDF content with robust parser...');
       let pdfText;
       try {
-        pdfText = await parsePdfAlt(buffer);
+        pdfText = await parsePdfRobust(buffer);
         console.log('PDF parsing complete. Text length:', pdfText.length);
+
+        // Check if the parser returned an error string
+        if (pdfText.startsWith('Error') || 
+            pdfText.startsWith('Failed') || 
+            pdfText.startsWith('Buffer') ||
+            pdfText.startsWith('Invalid') ||
+            pdfText.startsWith('Could not') ||
+            pdfText.startsWith('No ')) {
+          console.error('PDF parser returned error:', pdfText);
+          return NextResponse.json(
+            { error: `PDF parsing failed: ${pdfText}` },
+            { status: 422 }
+          );
+        }
       } catch (pdfError: unknown) {
-        console.error('PDF parsing error:', pdfError);
+        const errorDetail = pdfError instanceof Error 
+          ? `${pdfError.name}: ${pdfError.message}` 
+          : 'Unknown parsing error';
+        
+        console.error('PDF parsing error:', errorDetail);
+        if (pdfError instanceof Error && pdfError.stack) {
+          console.error('Error stack:', pdfError.stack);
+        }
+        
         return NextResponse.json(
-          { error: `PDF parsing failed: ${pdfError instanceof Error ? pdfError.message : 'Unknown parsing error'}` },
+          { error: `PDF parsing failed: ${errorDetail}` },
           { status: 422 }
         );
       }
 
       // Upload to Cloudinary
       console.log('Uploading to Cloudinary...');
-      const uploadResult = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'notes-ai',
-            resource_type: 'auto',
-          },
-          (error, result) => {
-            if (error) {
-              console.error('Cloudinary upload error:', error);
-              reject(error);
-            } else if (!result) {
-              console.error('Cloudinary returned empty result');
-              reject(new Error('Cloudinary upload failed with empty result'));
-            } else {
-              resolve(result as CloudinaryUploadResult);
+      let uploadResult: CloudinaryUploadResult;
+      try {
+        uploadResult = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'notes-ai',
+              resource_type: 'auto',
+              format: 'pdf',
+              allowed_formats: ['pdf'],
+              max_file_size: 10485760, // 10MB limit
+            },
+            (error, result) => {
+              if (error) {
+                console.error('Cloudinary upload error:', error);
+                reject(new Error(`Cloudinary upload failed: ${error.message}`));
+              } else if (!result) {
+                console.error('Cloudinary returned empty result');
+                reject(new Error('Cloudinary upload failed: No result returned'));
+              } else {
+                console.log('Cloudinary upload successful:', result);
+                resolve(result as CloudinaryUploadResult);
+              }
             }
-          }
-        );
+          );
 
-        const readable = new Readable();
-        readable._read = () => {}; // _read method is required but we don't need to implement it
-        readable.push(buffer);
-        readable.push(null);
-        readable.pipe(uploadStream);
-      });
+          // Create a readable stream from the buffer
+          const readable = new Readable();
+          readable._read = () => {}; // _read method is required but we don't need to implement it
+          readable.push(buffer);
+          readable.push(null);
+
+          // Handle stream errors
+          readable.on('error', (error) => {
+            console.error('Stream error during upload:', error);
+            reject(new Error(`Stream error: ${error.message}`));
+          });
+
+          // Pipe the buffer to Cloudinary
+          readable.pipe(uploadStream);
+        });
+      } catch (uploadError) {
+        console.error('Cloudinary upload failed:', uploadError);
+        return NextResponse.json(
+          { error: `Failed to upload to Cloudinary: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}` },
+          { status: 500 }
+        );
+      }
+
+      if (!uploadResult || !uploadResult.secure_url) {
+        console.error('Invalid Cloudinary upload result:', uploadResult);
+        return NextResponse.json(
+          { error: 'Failed to get secure URL from Cloudinary upload' },
+          { status: 500 }
+        );
+      }
+
       console.log('Cloudinary upload complete, URL:', uploadResult.secure_url);
 
       // Process content with Perplexity AI

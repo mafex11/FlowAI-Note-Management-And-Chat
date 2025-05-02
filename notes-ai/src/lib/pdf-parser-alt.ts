@@ -215,4 +215,3 @@ function cleanupPdfText(text: string): string {
     return text || ''; // Return the original text if cleanup fails
   }
 } 
-} 
