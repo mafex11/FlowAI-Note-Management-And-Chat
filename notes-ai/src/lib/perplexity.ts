@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
@@ -6,6 +6,38 @@ const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
 if (!PERPLEXITY_API_KEY) {
   console.warn('Missing PERPLEXITY_API_KEY environment variable');
 }
+
+export const perplexity = {
+  chat: {
+    completions: {
+      create: async (params: {
+        model: string;
+        messages: { role: string; content: string }[];
+      }) => {
+        try {
+          const response = await axios.post(
+            PERPLEXITY_API_URL,
+            params,
+            {
+              headers: {
+                'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+          return response.data;
+        } catch (error) {
+          if (error instanceof AxiosError) {
+            console.error('Perplexity API Error:', error.response?.data || error.message);
+          } else {
+            console.error('Perplexity API Error:', error);
+          }
+          throw error;
+        }
+      },
+    },
+  },
+};
 
 export async function queryPerplexity(
   prompt: string,
@@ -55,12 +87,12 @@ export async function queryPerplexity(
     
     return response.data.choices[0].message.content;
   } catch (error) {
-    console.error('Error calling Perplexity API:', error);
-    if (error.response) {
-      console.error('API response:', error.response.data);
-      console.error('Status code:', error.response.status);
+    if (error instanceof AxiosError) {
+      console.error("Error querying Perplexity:", error.response?.data || error.message);
+    } else {
+      console.error("Error querying Perplexity:", error);
     }
-    throw new Error('Failed to get response from Perplexity AI: ' + (error.message || 'Unknown error'));
+    throw error;
   }
 }
 

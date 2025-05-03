@@ -105,7 +105,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-white">
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-black">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -124,7 +124,7 @@ export default function Dashboard() {
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex-1 p-6 bg-gray-50">
+      <div className="flex-1 p-6 bg-black">
         {error && (
           <div className="bg-red-50 p-4 rounded-lg text-red-700 mb-6">
             {error}
@@ -133,7 +133,7 @@ export default function Dashboard() {
         
         {/* Document Statistics */}
         <div className="grid auto-rows-min gap-4 md:grid-cols-3 mb-6">
-          <div className="p-6 rounded-xl bg-white shadow-sm">
+          <div className="p-6 rounded-xl bg-red shadow-sm">
             <h3 className="text-lg font-semibold mb-2">Total Documents</h3>
             <p className="text-3xl font-bold">{documentStats.total}</p>
           </div>

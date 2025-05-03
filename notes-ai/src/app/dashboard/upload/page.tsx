@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Upload, FileText, X, AlertCircle, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -26,6 +28,7 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -103,6 +106,7 @@ export default function UploadPage() {
     
     setUploading(true);
     setError("");
+    setUploadProgress(0);
     
     const formData = new FormData();
     formData.append("file", file);
@@ -123,7 +127,19 @@ export default function UploadPage() {
         body: formData,
       });
       
+      // Simulate upload progress since we can't get actual progress from fetch
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
+      
       if (!response.ok) {
+        clearInterval(progressInterval);
         console.error("Upload failed with status:", response.status);
         
         const contentType = response.headers.get("content-type");
@@ -151,12 +167,20 @@ export default function UploadPage() {
         }
       }
       
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
       const data = await response.json();
       console.log("Upload successful, document ID:", data.document.id);
       
+      // Show success toast
+      toast.success("Document uploaded successfully!", {
+        description: "Your document has been processed and is ready to use.",
+      });
+      
       // Redirect to document page
       router.push(`/dashboard/documents/${data.document.id}`);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Upload error:", error);
       
       // Provide more helpful error messages based on error type
@@ -174,6 +198,9 @@ export default function UploadPage() {
       }
       
       setError(errorMessage);
+      toast.error("Upload failed", {
+        description: errorMessage,
+      });
     } finally {
       setUploading(false);
     }
@@ -322,14 +349,25 @@ export default function UploadPage() {
                 </div>
               )}
               
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  disabled={uploading || !file}
-                  className="min-w-[120px]"
-                >
-                  {uploading ? "Uploading..." : "Upload"}
-                </Button>
+              <div className="flex flex-col gap-4">
+                {uploading && (
+                  <div className="space-y-2">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-sm text-gray-500 text-center">
+                      Uploading... {uploadProgress}%
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={uploading || !file}
+                    className="min-w-[120px]"
+                  >
+                    {uploading ? "Uploading..." : "Upload"}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>
