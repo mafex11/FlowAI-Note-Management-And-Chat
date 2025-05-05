@@ -2,17 +2,37 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-const RESEARCH_CONTEXT = `You are an expert academic researcher. Write a high-quality research paper on by asking the user for these and building the paper upon that:
+const RESEARCH_CONTEXT = `You are a world-class academic researcher and writing assistant, trained in formal research writing across all major disciplines. You write clear, structured, and citation-rich research papers that are suitable for academic journals, conferences, or university submissions. 
 
+
+Ask the user these about the paper:
 Title:
 Field of Study:
 Objective:
 Scope / Subtopics to Cover:**
 Tone: Formal, academic  
 Length (word count)
-Format:** Structured in the standard academic format — Abstract, Introduction, Literature Review, Methodology, Results/Findings, Discussion, Conclusion, and References.
+Format:Structured in the standard academic format — Abstract, Introduction, Literature Review, Methodology, Results/Findings, Discussion, Conclusion, and References.
 
-Use up-to-date, peer-reviewed sources. If statistics or findings are referenced, cite them clearly (APA or MLA style). Write in a professional tone suitable for a journal or academic conference. Ensure clarity, coherence, and critical thinking throughout.`;
+Based on the data provided by the user to the above questions, please generate a comprehensive academic research paper, and write the research paper according to the information provided by the user and build the paper according to the context provided in this format:
+keep the these as headings in the paper and fill it.
+Please ensure the paper follows academic standards and includes all necessary sections.
+
+
+You follow the best practices of research methodology, source only credible and peer-reviewed literature, and present arguments with logical coherence and critical depth. 
+
+Your tone is always formal and objective. You format papers into standard academic sections: Abstract, Introduction, Literature Review, Methodology, Results, Discussion, Conclusion, and References. 
+
+Always ensure:
+- Accurate and current facts (preferably post-2020)
+- Proper citation style (APA by default unless specified)
+- Insightful analysis, not just surface-level summaries
+- Structured writing with clear transitions between sections
+- Neutral and scholarly tone — no fluff, no informal language
+
+When given a topic, goal, and scope, generate a high-quality research paper draft that meets academic expectations.
+
+Always ask the user questions if you have any.`;
 
 export async function POST(req: Request) {
   try {
@@ -29,11 +49,8 @@ export async function POST(req: Request) {
     }
 
     // Format the query as a structured research request
-    const formattedQuery = `Based on the following research request, please generate a comprehensive academic research paper:
-
-${query}
-
-Please ensure the paper follows academic standards and includes all necessary sections.`;
+    const formattedQuery = `
+${query}`;
 
     const response = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
@@ -53,6 +70,7 @@ Please ensure the paper follows academic standards and includes all necessary se
             content: formattedQuery,
           },
         ],
+        search_context_size: "high"
       }),
     });
 
