@@ -257,7 +257,7 @@ export default function ResearchPage() {
                   }`}
                 >
                   {message.role === "assistant" ? (
-                    <div className="space-y-2 w-full">
+                    <div className="space-y-2 w-full text-justify">
                       {/* Thinking Process */}
                       {extractThinkingProcess(message.content) && (
                         <motion.div
@@ -294,129 +294,133 @@ export default function ResearchPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.1 }}
-                        className="bg-card rounded-lg border border-border p-4 w-full"
+                        className="bg-card rounded-lg border border-border p-4 w-full h-[32rem] overflow-y-auto"
                       >
                         <div className="prose prose-invert max-w-none">
                           {message.content === "I'm researching and analyzing your request. This may take a moment..." ? (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <div className="flex flex-col">
-                                <span>{message.content}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  Researching: {formatTime(researchTime)}
-                                </span>
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <div className="flex flex-col">
+                                  <span>{message.content}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Researching: {formatTime(researchTime)}
+                                  </span>
+                                </div>
                               </div>
+                              {/* Show thinking process while loading */}
+                              {extractThinkingProcess(message.content) && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  transition={{ duration: 0.3 }}
+                                  className="bg-card/50 rounded-lg border border-border w-full"
+                                >
+                                  <div className="p-4">
+                                    <h3 className="text-sm font-semibold mb-2">AI Thinking Process</h3>
+                                    <div className="max-h-[200px] overflow-y-auto">
+                                      <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+                                        {extractThinkingProcess(message.content)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
                             </div>
                           ) : message.animationCompleted ? (
-                            <div className="prose prose-invert max-w-none prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-headings:font-semibold prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-code:bg-card/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-table:border prose-table:border-border prose-th:border prose-th:border-border prose-td:border prose-td:border-border prose-th:bg-card/50 prose-th:p-2 prose-td:p-2 prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-4 prose-blockquote:italic" dangerouslySetInnerHTML={{ 
-                              __html: extractMainContent(message.content)
-                                // Clean up extra backticks and asterisks
-                                .replace(/```{3,}/g, '```')
-                                .replace(/\*{3,}/g, '**')
-                                .replace(/_{3,}/g, '__')
-                                // Headers with proper spacing
-                                .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
-                                .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$1</h2>')
-                                .replace(/^### (.*?)$/gm, '<h3 class="text-xl font-bold mt-5 mb-2">$1</h3>')
-                                .replace(/^#### (.*?)$/gm, '<h4 class="text-lg font-bold mt-4 mb-2">$1</h4>')
-                                .replace(/^##### (.*?)$/gm, '<h5 class="text-base font-bold mt-3 mb-1">$1</h5>')
-                                .replace(/^###### (.*?)$/gm, '<h6 class="text-sm font-bold mt-2 mb-1">$1</h6>')
-                                // Bold and Italic with proper spacing
-                                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-                                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                                .replace(/_(.*?)_/g, '<em class="italic">$1</em>')
-                                // Code blocks with language support
-                                .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                                  const language = lang || 'plaintext';
-                                  return `<pre class="language-${language}"><code class="language-${language}">${code.trim()}</code></pre>`;
-                                })
-                                // Inline code
-                                .replace(/`([^`]+)`/g, '<code class="bg-card/50 px-1 py-0.5 rounded">$1</code>')
-                                // Lists with proper indentation
-                                .replace(/^\s*[-*+]\s+(.*?)$/gm, '<li class="ml-4">$1</li>')
-                                .replace(/(<li class="ml-4">.*?<\/li>)/gs, '<ul class="list-disc pl-4 my-4">$1</ul>')
-                                // Ordered lists
-                                .replace(/^\s*\d+\.\s+(.*?)$/gm, '<li class="ml-4">$1</li>')
-                                .replace(/(<li class="ml-4">.*?<\/li>)/gs, '<ol class="list-decimal pl-4 my-4">$1</ol>')
-                                // Blockquotes with proper styling
-                                .replace(/^\s*>\s+(.*?)$/gm, '<blockquote class="border-l-4 border-primary pl-4 italic my-4">$1</blockquote>')
-                                // Links with proper styling
-                                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
-                                // Tables with proper alignment
-                                .replace(/\|(.*?)\|/g, (match) => {
-                                  const cells = match.split('|').filter(cell => cell.trim());
-                                  return `<td class="border border-border p-2">${cells.join('</td><td class="border border-border p-2">')}</td>`;
-                                })
-                                .replace(/<td.*?>(.*?)<\/td>/g, '<td class="border border-border p-2">$1</td>')
-                                // LaTeX expressions
-                                .replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$1</span>')
-                                .replace(/\\\[(.*?)\\\]/g, '<div class="math-block my-4">$1</div>')
-                                // Horizontal rule
-                                .replace(/^---$/gm, '<hr class="my-8 border-t border-border"/>')
-                                // Clean up extra newlines
-                                .replace(/\n{3,}/g, '\n\n')
-                                // Convert remaining newlines to breaks
-                                .replace(/\n/g, '<br/>')
-                            }} />
-                          ) : (
-                            <div className="prose prose-invert max-w-none min-h-[100px] transition-all duration-300 ease-in-out">
-                              <TextGenerateEffect
-                                words={extractMainContent(message.content)
-                                  // Clean up extra backticks and asterisks
-                                  .replace(/```{3,}/g, '```')
-                                  .replace(/\*{3,}/g, '**')
-                                  .replace(/_{3,}/g, '__')
-                                  // Headers with proper spacing
-                                  .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
-                                  .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$1</h2>')
-                                  .replace(/^### (.*?)$/gm, '<h3 class="text-xl font-bold mt-5 mb-2">$1</h3>')
-                                  .replace(/^#### (.*?)$/gm, '<h4 class="text-lg font-bold mt-4 mb-2">$1</h4>')
-                                  .replace(/^##### (.*?)$/gm, '<h5 class="text-base font-bold mt-3 mb-1">$1</h5>')
-                                  .replace(/^###### (.*?)$/gm, '<h6 class="text-sm font-bold mt-2 mb-1">$1</h6>')
-                                  // Bold and Italic with proper spacing
-                                  .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-                                  .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                                  .replace(/_(.*?)_/g, '<em class="italic">$1</em>')
-                                  // Code blocks with language support
-                                  .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                                    const language = lang || 'plaintext';
-                                    return `<pre class="language-${language} bg-card/50 border border-border rounded-lg p-4 overflow-x-auto my-4"><code class="language-${language}">${code.trim().replace(/\n/g, '<br/>')}</code></pre>`;
-                                  })
-                                  // Inline code
-                                  .replace(/`([^`]+)`/g, '<code class="bg-card/50 px-1 py-0.5 rounded">$1</code>')
-                                  // Lists with proper indentation
-                                  .replace(/^\s*[-*+]\s+(.*?)$/gm, '<li class="ml-4">$1</li>')
-                                  .replace(/(<li class="ml-4">.*?<\/li>)/g, '<ul class="list-disc pl-4 my-4">$1</ul>')
-                                  // Ordered lists
-                                  .replace(/^\s*\d+\.\s+(.*?)$/gm, '<li class="ml-4">$1</li>')
-                                  .replace(/(<li class="ml-4">.*?<\/li>)/g, '<ol class="list-decimal pl-4 my-4">$1</ol>')
-                                  // Blockquotes with proper styling
-                                  .replace(/^\s*>\s+(.*?)$/gm, '<blockquote class="border-l-4 border-primary pl-4 italic my-4">$1</blockquote>')
-                                  // Links with proper styling
-                                  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
-                                  // Tables with proper alignment
-                                  .replace(/\|(.*?)\|/g, (match) => {
-                                    const cells = match.split('|').filter(cell => cell.trim());
-                                    return `<td class="border border-border p-2">${cells.join('</td><td class="border border-border p-2">')}</td>`;
-                                  })
-                                  .replace(/<td.*?>(.*?)<\/td>/g, '<td class="border border-border p-2">$1</td>')
-                                  // LaTeX expressions
-                                  .replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$1</span>')
-                                  .replace(/\\\[(.*?)\\\]/g, '<div class="math-block my-4">$1</div>')
-                                  // Horizontal rule
-                                  .replace(/^---$/gm, '<hr class="my-8 border-t border-border"/>')
-                                  // Clean up extra newlines and ensure proper spacing
-                                  .replace(/\n{3,}/g, '\n\n')
-                                  // Convert remaining newlines to proper spacing
-                                  .replace(/\n\n/g, '</p><p class="my-4">')
-                                  .replace(/\n/g, '<br/>')
-                                  // Fix nested headers
-                                  .replace(/<h[1-6].*?>(.*?)<\/h[1-6]><\/p>/g, '<h1>$1</h1>')
-                                  .replace(/<h[1-6].*?>(.*?)<\/h[1-6]><br\/>/g, '<h1>$1</h1>')}
-                                className="text-foreground"
-                                duration={0.5}
+                            <div className="space-y-4">
+                              {/* Show thinking process first */}
+                              {extractThinkingProcess(message.content) && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  transition={{ duration: 0.3 }}
+                                  className="bg-card/50 rounded-lg border border-border w-full"
+                                >
+                                  <div className="p-4">
+                                    <h3 className="text-sm font-semibold mb-2">AI Thinking Process</h3>
+                                    <div className="max-h-[200px] overflow-y-auto">
+                                      <pre className="whitespace-pre-wrap text-sm text-muted-foreground">
+                                        {extractThinkingProcess(message.content)}
+                                      </pre>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
+                              {/* Show final answer */}
+                              <div 
+                                className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: extractMainContent(message.content)
+                                    // Pre-process: convert all line breaks to a consistent format
+                                    .replace(/\n/g, "<br>")
+                                    
+                                    // Handle markdown headers properly (must process these first)
+                                    .replace(/^# (.*?)(?:<br>|$)/gm, '<div class="my-6"><h1 class="text-3xl font-bold">$1</h1></div>')
+                                    .replace(/^## (.*?)(?:<br>|$)/gm, '<div class="my-5"><h2 class="text-2xl font-bold">$1</h2></div>')
+                                    .replace(/### (.*?)(?:<br>|$)/gm, '<div class="my-4"><h3 class="text-xl font-semibold">$1</h3></div>')
+                                    
+                                    // Handle bullet points (transform to HTML list items)
+                                    .replace(/- (.*?)(?:<br>|$)/gm, '<li>$1</li>')
+                                    
+                                    // Wrap consecutive list items in ul tags
+                                    .replace(/(<li>.*?<\/li>)+/g, '<ul class="list-disc pl-5 my-4 space-y-2">$&</ul>')
+                                    
+                                    // Format styling elements
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                                    .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
+                                    .replace(/\[(\d+)\]/g, '<sup class="text-primary">[$1]</sup>') // Citations
+                                    .replace(/\((.*?)\)/g, '<span class="text-muted-foreground">($1)</span>') // Parenthetical
+                                    
+                                    // Handle paragraph breaks - convert remaining <br> tags
+                                    .split('<br><br>').map(para => {
+                                      // Skip paragraphs that already have block-level HTML
+                                      if (para.match(/<(div|h[1-3]|ul|ol|li)[^>]*>/)) {
+                                        return para;
+                                      }
+                                      return para.trim() ? `<p class="my-4">${para.replace(/<br>/g, ' ')}</p>` : '';
+                                    }).join('')
+                                    
+                                    // Clean up any potential tag nesting issues
+                                    .replace(/<p>\s*<(h[1-3]|ul|ol|div)[^>]*>/g, '<$1>')
+                                    .replace(/<\/(h[1-3]|ul|ol|div)>\s*<\/p>/g, '</$1>')
+                                    
+                                    // Remove any empty paragraphs
+                                    .replace(/<p>\s*<\/p>/g, '')
+                                    
+                                    // Wrap everything in a container div for proper spacing
+                                    .replace(/^(.+)$/, '<div class="space-y-4">$1</div>')
+                                }}
                               />
                             </div>
+                          ) : (
+                            <motion.div 
+                              className="prose prose-invert max-w-none"
+                              layout
+                              transition={{ duration: 0.3 }}
+                            >
+                              <TextGenerateEffect
+                                words={extractMainContent(message.content)
+                                  // Format headers
+                                  .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
+                                  .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$2</h2>')
+                                  // Format paragraphs
+                                  .replace(/<br><br>/g, '</p><p>')
+                                  .replace(/<br>/g, ' ')
+                                  // Format citations
+                                  .replace(/\[(\d+)\]/g, '<sup class="text-primary">[$1]</sup>')
+                                  // Format italic text
+                                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                  // Format parenthetical notes
+                                  .replace(/\((.*?)\)/g, '<span class="text-muted-foreground">($1)</span>')
+                                  // Clean up any remaining markdown
+                                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                  // Wrap in paragraph tags
+                                  .replace(/^(.*?)$/gm, '<p>$1</p>')}
+                                className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border"
+                                duration={0.5}
+                              />
+                            </motion.div>
                           )}
                         </div>
                       </motion.div>
