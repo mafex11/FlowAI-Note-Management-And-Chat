@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from 'react-markdown';
 import {
   Breadcrumb,
@@ -16,12 +16,13 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ChevronDown, ChevronUp, ExternalLink, Send } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ExternalLink, Send, ChevronLeft, History } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { format } from "date-fns";
 
 interface Message {
   role: "user" | "assistant";
@@ -39,6 +40,14 @@ interface Message {
   startTime?: number;
 }
 
+interface ChatHistory {
+  _id: string;
+  title: string;
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function ResearchPage() {
   const { status } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,6 +57,8 @@ export default function ResearchPage() {
   const [researchTime, setResearchTime] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,6 +88,46 @@ export default function ResearchPage() {
     };
   }, [loading]);
 
+  // Load chat history
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const res = await fetch('/api/chats');
+        if (res.ok) {
+          const data = await res.json();
+          setChatHistory(data);
+        }
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+      }
+    };
+
+    loadChatHistory();
+  }, []);
+
+  // Save chat when it's complete
+  const saveChat = async (messages: Message[]) => {
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages,
+          title: messages[0].content.slice(0, 50) + '...'
+        }),
+      });
+
+      if (res.ok) {
+        const newChat = await res.json();
+        setChatHistory(prev => [newChat, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error saving chat:', error);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -96,15 +147,17 @@ export default function ResearchPage() {
     inputBox?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     // Add user message to chat
-    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    const updatedMessages = [...messages, { role: "user", content: userMessage }];
+    setMessages(updatedMessages);
 
     // Add AI thinking message
-    setMessages(prev => [...prev, { 
+    const thinkingMessage = { 
       role: "assistant", 
       content: "I'm researching and analyzing your request. This may take a moment...",
       animationCompleted: true,
       startTime: Date.now()
-    }]);
+    };
+    setMessages(prev => [...prev, thinkingMessage]);
 
     try {
       const res = await fetch("/api/research", {
@@ -123,20 +176,21 @@ export default function ResearchPage() {
 
       const data = await res.json();
       
-      // Remove the thinking message and add AI response to chat
-      setMessages(prev => {
-        const messagesWithoutThinking = prev.slice(0, -1);
-        return [...messagesWithoutThinking, {
-          role: "assistant",
-          content: data.choices[0].message.content,
-          citations: data.citations,
-          usage: data.usage,
-          animationCompleted: false
-        }];
-      });
+      // Remove the thinking message and add AI response
+      const finalMessages = updatedMessages.concat([{
+        role: "assistant",
+        content: data.choices[0].message.content,
+        citations: data.citations,
+        usage: data.usage,
+        animationCompleted: false
+      }]);
+      
+      setMessages(finalMessages);
+      
+      // Save the chat
+      await saveChat(finalMessages);
     } catch (err) {
       console.error(err);
-      // Remove the thinking message and add error message
       setMessages(prev => {
         const messagesWithoutThinking = prev.slice(0, -1);
         return [...messagesWithoutThinking, {
@@ -147,7 +201,6 @@ export default function ResearchPage() {
       });
     } finally {
       setLoading(false);
-      // Scroll to the bottom of the messages after response is received
       setTimeout(() => {
         scrollToBottom();
       }, 100);
@@ -162,6 +215,47 @@ export default function ResearchPage() {
   const extractMainContent = (content: string) => {
     return content.replace(/<think>[\s\S]*?<\/think>/, "").trim();
   };
+
+  // Add chat history sidebar
+  const renderChatHistory = () => (
+    <motion.div
+      initial={{ x: -300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -300, opacity: 0 }}
+      className="fixed left-0 top-16 bottom-0 w-80 bg-card border-r border-border p-4 overflow-y-auto"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Chat History</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setIsHistoryOpen(false)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {chatHistory.map((chat) => (
+          <Button
+            key={chat._id}
+            variant="ghost"
+            className="w-full justify-start text-left"
+            onClick={() => {
+              setMessages(chat.messages);
+              setIsHistoryOpen(false);
+            }}
+          >
+            <div className="flex flex-col items-start">
+              <span className="font-medium truncate w-full">{chat.title}</span>
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(chat.updatedAt), 'MMM d, yyyy h:mm a')}
+              </span>
+            </div>
+          </Button>
+        ))}
+      </div>
+    </motion.div>
+  );
 
   if (status === "loading") {
     return <div className="p-8 text-center text-foreground">Loading authentication status...</div>;
@@ -196,43 +290,62 @@ export default function ResearchPage() {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+        <div className="ml-auto px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          >
+            <History className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col bg-background">
+        <AnimatePresence>
+          {isHistoryOpen && renderChatHistory()}
+        </AnimatePresence>
+
         {/* Guidelines */}
-        <div className="border-b border-border bg-card/50">
-          <div className="max-w-4xl mx-auto p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Be Specific and Contextual</h3>
-                <p className="text-sm text-muted-foreground">
-                  Provide clear, detailed information about your research topic, including specific aspects you want to explore.
-                </p>
+        {messages.length === 0 && (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="max-w-4xl w-full space-y-6">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold mb-2">Research Guidelines</h2>
+                <p className="text-muted-foreground">Follow these guidelines to get the best research results</p>
               </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Avoid Few-Shot Prompting</h3>
-                <p className="text-sm text-muted-foreground">
-                  Focus on a single, well-defined research question rather than multiple examples or scenarios.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Provide Relevant Context</h3>
-                <p className="text-sm text-muted-foreground">
-                  Include important background information, relevant theories, or specific methodologies you want to explore.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Think Like a Professor</h3>
-                <p className="text-sm text-muted-foreground">
-                  Frame your questions with academic rigor, considering theoretical frameworks and scholarly perspectives.
-                </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-card/50 rounded-lg p-4 border border-border">
+                  <h3 className="text-base font-semibold mb-1">Be Specific and Contextual</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Provide clear, detailed information about your research topic, including specific aspects you want to explore.
+                  </p>
+                </div>
+                <div className="bg-card/50 rounded-lg p-4 border border-border">
+                  <h3 className="text-base font-semibold mb-1">Avoid Few-Shot Prompting</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Focus on a single, well-defined research question rather than multiple examples or scenarios.
+                  </p>
+                </div>
+                <div className="bg-card/50 rounded-lg p-4 border border-border">
+                  <h3 className="text-base font-semibold mb-1">Provide Relevant Context</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Include important background information, relevant theories, or specific methodologies you want to explore.
+                  </p>
+                </div>
+                <div className="bg-card/50 rounded-lg p-4 border border-border">
+                  <h3 className="text-base font-semibold mb-1">Think Like a Professor</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Frame your questions with academic rigor, considering theoretical frameworks and scholarly perspectives.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-6 pb-24">
+        <div className={`flex-1 overflow-y-auto p-6 pb-24 ${messages.length === 0 ? 'hidden' : ''}`}>
           <div className="max-w-4xl mx-auto space-y-6">
             {messages.map((message, index) => (
               <motion.div
@@ -292,14 +405,18 @@ export default function ResearchPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.1 }}
-                        className="bg-card rounded-lg border border-border p-4 w-full h-[32rem] overflow-y-auto"
+                        className={`bg-card rounded-lg border border-border p-4 w-full ${
+                          message.content === "I'm researching and analyzing your request. This may take a moment..."
+                            ? "h-auto"
+                            : "h-[32rem]"
+                        } overflow-y-auto`}
                       >
                         <div className="prose prose-invert max-w-none">
                           {message.content === "I'm researching and analyzing your request. This may take a moment..." ? (
-                            <div className="space-y-4">
+                            <div className="space-y-4 w-full">
                               <div className="flex items-center gap-2">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                <div className="flex flex-col">
+                                <div className="flex flex-col w-full">
                                   <span>{message.content}</span>
                                   <span className="text-xs text-muted-foreground">
                                     Researching: {formatTime(researchTime)}
@@ -326,7 +443,12 @@ export default function ResearchPage() {
                               )}
                             </div>
                           ) : message.animationCompleted ? (
-                            <div className="space-y-4">
+                            <motion.div 
+                              className="space-y-4"
+                              initial={{ height: "auto" }}
+                              animate={{ height: "32rem" }}
+                              transition={{ duration: 0.5, ease: "easeInOut" }}
+                            >
                               {/* Show thinking process first */}
                               {extractThinkingProcess(message.content) && (
                                 <motion.div
@@ -375,7 +497,7 @@ export default function ResearchPage() {
                                   {extractMainContent(message.content)}
                                 </ReactMarkdown>
                               </div>
-                            </div>
+                            </motion.div>
                           ) : (
                             <motion.div 
                               className="prose prose-invert max-w-none"

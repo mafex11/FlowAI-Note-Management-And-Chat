@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Home, Upload, FileText, MessageSquare, LogOut, GitBranch } from "lucide-react"
+import { Home, Upload, FileText, MessageSquare, LogOut, GitBranch, Search } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
@@ -68,6 +68,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <Link href="/dashboard/chat" className="flex items-center text-gray-300 hover:text-white">
                 <MessageSquare className="mr-2 h-5 w-5" />
                 <span className="group-data-[state=collapsed]:hidden">Universal Chat</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={isActive('/dashboard/research')}>
+              <Link href="/dashboard/research" className="flex items-center text-gray-300 hover:text-white">
+                <Search className="mr-2 h-5 w-5" />
+                <span className="group-data-[state=collapsed]:hidden">Research Paper</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
