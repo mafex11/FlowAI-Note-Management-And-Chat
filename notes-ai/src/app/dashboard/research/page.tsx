@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import ReactMarkdown from 'react-markdown';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,7 +22,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
 
 interface Message {
   role: "user" | "assistant";
@@ -147,13 +147,11 @@ export default function ResearchPage() {
       });
     } finally {
       setLoading(false);
+      // Scroll to the bottom of the messages after response is received
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
     }
-  };
-
-  const handleAnimationComplete = (messageIndex: number) => {
-    setMessages(prev => prev.map((msg, idx) => 
-      idx === messageIndex ? { ...msg, animationCompleted: true } : msg
-    ));
   };
 
   const extractThinkingProcess = (content: string) => {
@@ -348,50 +346,35 @@ export default function ResearchPage() {
                                 </motion.div>
                               )}
                               {/* Show final answer */}
-                              <div 
-                                className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border"
-                                dangerouslySetInnerHTML={{ 
-                                  __html: extractMainContent(message.content)
-                                    // Pre-process: convert all line breaks to a consistent format
-                                    .replace(/\n/g, "<br>")
-                                    
-                                    // Handle markdown headers properly (must process these first)
-                                    .replace(/^# (.*?)(?:<br>|$)/gm, '<div class="my-6"><h1 class="text-3xl font-bold">$1</h1></div>')
-                                    .replace(/^## (.*?)(?:<br>|$)/gm, '<div class="my-5"><h2 class="text-2xl font-bold">$1</h2></div>')
-                                    .replace(/### (.*?)(?:<br>|$)/gm, '<div class="my-4"><h3 class="text-xl font-semibold">$1</h3></div>')
-                                    
-                                    // Handle bullet points (transform to HTML list items)
-                                    .replace(/- (.*?)(?:<br>|$)/gm, '<li>$1</li>')
-                                    
-                                    // Wrap consecutive list items in ul tags
-                                    .replace(/(<li>.*?<\/li>)+/g, '<ul class="list-disc pl-5 my-4 space-y-2">$&</ul>')
-                                    
-                                    // Format styling elements
-                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
-                                    .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
-                                    .replace(/\[(\d+)\]/g, '<sup class="text-primary">[$1]</sup>') // Citations
-                                    .replace(/\((.*?)\)/g, '<span class="text-muted-foreground">($1)</span>') // Parenthetical
-                                    
-                                    // Handle paragraph breaks - convert remaining <br> tags
-                                    .split('<br><br>').map(para => {
-                                      // Skip paragraphs that already have block-level HTML
-                                      if (para.match(/<(div|h[1-3]|ul|ol|li)[^>]*>/)) {
-                                        return para;
-                                      }
-                                      return para.trim() ? `<p class="my-4">${para.replace(/<br>/g, ' ')}</p>` : '';
-                                    }).join('')
-                                    
-                                    // Clean up any potential tag nesting issues
-                                    .replace(/<p>\s*<(h[1-3]|ul|ol|div)[^>]*>/g, '<$1>')
-                                    .replace(/<\/(h[1-3]|ul|ol|div)>\s*<\/p>/g, '</$1>')
-                                    
-                                    // Remove any empty paragraphs
-                                    .replace(/<p>\s*<\/p>/g, '')
-                                    
-                                    // Wrap everything in a container div for proper spacing
-                                    .replace(/^(.+)$/, '<div class="space-y-4">$1</div>')
-                                }}
-                              />
+                              <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border">
+                                <ReactMarkdown 
+                                  components={{
+                                    h1: ({...props}) => <h1 className="text-3xl font-bold my-6" {...props} />,
+                                    h2: ({...props}) => <h2 className="text-2xl font-bold my-5" {...props} />,
+                                    h3: ({...props}) => <h3 className="text-xl font-semibold my-4" {...props} />,
+                                    p: ({...props}) => <p className="my-4" {...props} />,
+                                    ul: ({...props}) => <ul className="list-disc pl-5 my-4 space-y-2" {...props} />,
+                                    ol: ({...props}) => <ol className="list-decimal pl-5 my-4 space-y-2" {...props} />,
+                                    li: ({...props}) => <li className="ml-4" {...props} />,
+                                    a: ({href, ...props}) => (
+                                      <a 
+                                        href={href} 
+                                        className="text-primary hover:underline" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        {...props} 
+                                      />
+                                    ),
+                                    em: ({...props}) => <em className="italic" {...props} />,
+                                    strong: ({...props}) => <strong className="font-bold" {...props} />,
+                                    code: ({...props}) => <code className="bg-card/50 px-1 py-0.5 rounded text-sm" {...props} />,
+                                    pre: ({...props}) => <pre className="bg-card/50 p-4 rounded-md overflow-x-auto my-4 text-sm" {...props} />,
+                                    blockquote: ({...props}) => <blockquote className="border-l-4 border-primary pl-4 italic my-4" {...props} />,
+                                  }}
+                                >
+                                  {extractMainContent(message.content)}
+                                </ReactMarkdown>
+                              </div>
                             </div>
                           ) : (
                             <motion.div 
@@ -399,27 +382,35 @@ export default function ResearchPage() {
                               layout
                               transition={{ duration: 0.3 }}
                             >
-                              <TextGenerateEffect
-                                words={extractMainContent(message.content)
-                                  // Format headers
-                                  .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
-                                  .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$2</h2>')
-                                  // Format paragraphs
-                                  .replace(/<br><br>/g, '</p><p>')
-                                  .replace(/<br>/g, ' ')
-                                  // Format citations
-                                  .replace(/\[(\d+)\]/g, '<sup class="text-primary">[$1]</sup>')
-                                  // Format italic text
-                                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                                  // Format parenthetical notes
-                                  .replace(/\((.*?)\)/g, '<span class="text-muted-foreground">($1)</span>')
-                                  // Clean up any remaining markdown
-                                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                  // Wrap in paragraph tags
-                                  .replace(/^(.*?)$/gm, '<p>$1</p>')}
-                                className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border"
-                                duration={0.5}
-                              />
+                              <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border">
+                                <ReactMarkdown 
+                                  components={{
+                                    h1: ({...props}) => <h1 className="text-3xl font-bold my-6" {...props} />,
+                                    h2: ({...props}) => <h2 className="text-2xl font-bold my-5" {...props} />,
+                                    h3: ({...props}) => <h3 className="text-xl font-semibold my-4" {...props} />,
+                                    p: ({...props}) => <p className="my-4" {...props} />,
+                                    ul: ({...props}) => <ul className="list-disc pl-5 my-4 space-y-2" {...props} />,
+                                    ol: ({...props}) => <ol className="list-decimal pl-5 my-4 space-y-2" {...props} />,
+                                    li: ({...props}) => <li className="ml-4" {...props} />,
+                                    a: ({href, ...props}) => (
+                                      <a 
+                                        href={href} 
+                                        className="text-primary hover:underline" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        {...props} 
+                                      />
+                                    ),
+                                    em: ({...props}) => <em className="italic" {...props} />,
+                                    strong: ({...props}) => <strong className="font-bold" {...props} />,
+                                    code: ({...props}) => <code className="bg-card/50 px-1 py-0.5 rounded text-sm" {...props} />,
+                                    pre: ({...props}) => <pre className="bg-card/50 p-4 rounded-md overflow-x-auto my-4 text-sm" {...props} />,
+                                    blockquote: ({...props}) => <blockquote className="border-l-4 border-primary pl-4 italic my-4" {...props} />,
+                                  }}
+                                >
+                                  {extractMainContent(message.content)}
+                                </ReactMarkdown>
+                              </div>
                             </motion.div>
                           )}
                         </div>
