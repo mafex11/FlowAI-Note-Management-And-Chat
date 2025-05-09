@@ -105,29 +105,6 @@ export default function ResearchPage() {
     loadChatHistory();
   }, []);
 
-  // Save chat when it's complete
-  const saveChat = async (messages: Message[]) => {
-    try {
-      const res = await fetch('/api/chats', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages,
-          title: messages[0].content.slice(0, 50) + '...'
-        }),
-      });
-
-      if (res.ok) {
-        const newChat = await res.json();
-        setChatHistory(prev => [newChat, ...prev]);
-      }
-    } catch (error) {
-      console.error('Error saving chat:', error);
-    }
-  };
-
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -214,6 +191,29 @@ export default function ResearchPage() {
 
   const extractMainContent = (content: string) => {
     return content.replace(/<think>[\s\S]*?<\/think>/, "").trim();
+  };
+
+  // Save chat when it's complete
+  const saveChat = async (messages: Message[]) => {
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages,
+          title: messages[0].content.slice(0, 50) + '...'
+        }),
+      });
+
+      if (res.ok) {
+        const newChat = await res.json();
+        setChatHistory(prev => [newChat, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error saving chat:', error);
+    }
   };
 
   // Add chat history sidebar
@@ -340,6 +340,31 @@ export default function ResearchPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Example Prompts */}
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">Try asking:</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <button
+                    onClick={() => setInput("Analyze the impact of artificial intelligence on healthcare delivery, focusing on diagnostic accuracy and patient outcomes.")}
+                    className="text-left p-4 bg-card/50 rounded-lg border border-border hover:bg-accent transition-colors"
+                  >
+                    <p className="text-sm">Analyze the impact of artificial intelligence on healthcare delivery, focusing on diagnostic accuracy and patient outcomes.</p>
+                  </button>
+                  <button
+                    onClick={() => setInput("Compare and contrast the major theories of quantum mechanics, including their mathematical foundations and experimental evidence.")}
+                    className="text-left p-4 bg-card/50 rounded-lg border border-border hover:bg-accent transition-colors"
+                  >
+                    <p className="text-sm">Compare and contrast the major theories of quantum mechanics, including their mathematical foundations and experimental evidence.</p>
+                  </button>
+                  <button
+                    onClick={() => setInput("Examine the role of social media in modern political movements, with emphasis on information dissemination and public engagement.")}
+                    className="text-left p-4 bg-card/50 rounded-lg border border-border hover:bg-accent transition-colors"
+                  >
+                    <p className="text-sm">Examine the role of social media in modern political movements, with emphasis on information dissemination and public engagement.</p>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -414,10 +439,10 @@ export default function ResearchPage() {
                         <div className="prose prose-invert max-w-none">
                           {message.content === "I'm researching and analyzing your request. This may take a moment..." ? (
                             <div className="space-y-4 w-full">
-                              <div className="flex items-center gap-2 w-full">
-                                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
                                 <div className="flex flex-col w-full">
-                                  <span className="text-lg">{message.content}</span>
+                                  <span>{message.content}</span>
                                   <span className="text-xs text-muted-foreground">
                                     Researching: {formatTime(researchTime)}
                                   </span>
@@ -469,25 +494,29 @@ export default function ResearchPage() {
                               )}
                               {/* Show final answer */}
                               <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border">
-                                {message.animationCompleted && (
-                                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-                                    <span>Research completed in: {formatTime(researchTime)}</span>
-                                  </div>
-                                )}
                                 <ReactMarkdown 
                                   components={{
-                                    h1: ({ ...props }) => <h1 className="text-2xl font-bold mb-4" {...props} />,
-                                    h2: ({ ...props }) => <h2 className="text-xl font-bold mb-3" {...props} />,
-                                    h3: ({ ...props }) => <h3 className="text-lg font-bold mb-2" {...props} />,
-                                    p: ({ ...props }) => <p className="mb-4" {...props} />,
-                                    ul: ({ ...props }) => <ul className="list-disc pl-6 mb-4" {...props} />,
-                                    ol: ({ ...props }) => <ol className="list-decimal pl-6 mb-4" {...props} />,
-                                    li: ({ ...props }) => <li className="mb-2" {...props} />,
-                                    blockquote: ({ ...props }) => <blockquote className="border-l-4 border-primary pl-4 italic my-4" {...props} />,
-                                    code: ({ inline, ...props }) => inline ? <code className="bg-card/50 px-1 py-0.5 rounded" {...props} /> : <code className="block bg-card/50 p-4 rounded-lg my-4 overflow-x-auto" {...props} />,
-                                    pre: ({ ...props }) => <pre className="bg-card/50 p-4 rounded-lg my-4 overflow-x-auto" {...props} />,
-                                    a: ({ ...props }) => <a className="text-primary hover:underline" {...props} />,
-                                    hr: ({ ...props }) => <hr className="my-8 border-t border-border" {...props} />,
+                                    h1: ({...props}) => <h1 className="text-3xl font-bold my-6" {...props} />,
+                                    h2: ({...props}) => <h2 className="text-2xl font-bold my-5" {...props} />,
+                                    h3: ({...props}) => <h3 className="text-xl font-semibold my-4" {...props} />,
+                                    p: ({...props}) => <p className="my-4" {...props} />,
+                                    ul: ({...props}) => <ul className="list-disc pl-5 my-4 space-y-2" {...props} />,
+                                    ol: ({...props}) => <ol className="list-decimal pl-5 my-4 space-y-2" {...props} />,
+                                    li: ({...props}) => <li className="ml-4" {...props} />,
+                                    a: ({href, ...props}) => (
+                                      <a 
+                                        href={href} 
+                                        className="text-primary hover:underline" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        {...props} 
+                                      />
+                                    ),
+                                    em: ({...props}) => <em className="italic" {...props} />,
+                                    strong: ({...props}) => <strong className="font-bold" {...props} />,
+                                    code: ({...props}) => <code className="bg-card/50 px-1 py-0.5 rounded text-sm" {...props} />,
+                                    pre: ({...props}) => <pre className="bg-card/50 p-4 rounded-md overflow-x-auto my-4 text-sm" {...props} />,
+                                    blockquote: ({...props}) => <blockquote className="border-l-4 border-primary pl-4 italic my-4" {...props} />,
                                   }}
                                 >
                                   {extractMainContent(message.content)}
@@ -501,25 +530,29 @@ export default function ResearchPage() {
                               transition={{ duration: 0.3 }}
                             >
                               <div className="prose prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-em:text-foreground prose-code:text-foreground prose-pre:bg-card/50 prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-pre:overflow-x-auto prose-pre:my-4 prose-blockquote:border-primary prose-blockquote:border-l-4 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-a:text-primary prose-a:hover:underline prose-ul:list-disc prose-ul:pl-4 prose-ul:my-4 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-4 prose-li:ml-4 prose-hr:my-8 prose-hr:border-t prose-hr:border-border">
-                                {message.animationCompleted && (
-                                  <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-                                    <span>Research completed in: {formatTime(researchTime)}</span>
-                                  </div>
-                                )}
                                 <ReactMarkdown 
                                   components={{
-                                    h1: ({ ...props }) => <h1 className="text-2xl font-bold mb-4" {...props} />,
-                                    h2: ({ ...props }) => <h2 className="text-xl font-bold mb-3" {...props} />,
-                                    h3: ({ ...props }) => <h3 className="text-lg font-bold mb-2" {...props} />,
-                                    p: ({ ...props }) => <p className="mb-4" {...props} />,
-                                    ul: ({ ...props }) => <ul className="list-disc pl-6 mb-4" {...props} />,
-                                    ol: ({ ...props }) => <ol className="list-decimal pl-6 mb-4" {...props} />,
-                                    li: ({ ...props }) => <li className="mb-2" {...props} />,
-                                    blockquote: ({ ...props }) => <blockquote className="border-l-4 border-primary pl-4 italic my-4" {...props} />,
-                                    code: ({ inline, ...props }) => inline ? <code className="bg-card/50 px-1 py-0.5 rounded" {...props} /> : <code className="block bg-card/50 p-4 rounded-lg my-4 overflow-x-auto" {...props} />,
-                                    pre: ({ ...props }) => <pre className="bg-card/50 p-4 rounded-lg my-4 overflow-x-auto" {...props} />,
-                                    a: ({ ...props }) => <a className="text-primary hover:underline" {...props} />,
-                                    hr: ({ ...props }) => <hr className="my-8 border-t border-border" {...props} />,
+                                    h1: ({...props}) => <h1 className="text-3xl font-bold my-6" {...props} />,
+                                    h2: ({...props}) => <h2 className="text-2xl font-bold my-5" {...props} />,
+                                    h3: ({...props}) => <h3 className="text-xl font-semibold my-4" {...props} />,
+                                    p: ({...props}) => <p className="my-4" {...props} />,
+                                    ul: ({...props}) => <ul className="list-disc pl-5 my-4 space-y-2" {...props} />,
+                                    ol: ({...props}) => <ol className="list-decimal pl-5 my-4 space-y-2" {...props} />,
+                                    li: ({...props}) => <li className="ml-4" {...props} />,
+                                    a: ({href, ...props}) => (
+                                      <a 
+                                        href={href} 
+                                        className="text-primary hover:underline" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        {...props} 
+                                      />
+                                    ),
+                                    em: ({...props}) => <em className="italic" {...props} />,
+                                    strong: ({...props}) => <strong className="font-bold" {...props} />,
+                                    code: ({...props}) => <code className="bg-card/50 px-1 py-0.5 rounded text-sm" {...props} />,
+                                    pre: ({...props}) => <pre className="bg-card/50 p-4 rounded-md overflow-x-auto my-4 text-sm" {...props} />,
+                                    blockquote: ({...props}) => <blockquote className="border-l-4 border-primary pl-4 italic my-4" {...props} />,
                                   }}
                                 >
                                   {extractMainContent(message.content)}
